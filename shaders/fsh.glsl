@@ -1,8 +1,8 @@
 #version 330 core
 
+in vec4 f_color;
 out vec4 frag;
-in vec2 a;
 
 void main() {
-	frag = vec4(1) * vec4(a, 0, 1);
+	frag = f_color;
 }

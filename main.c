@@ -60,9 +60,36 @@ int main() {
 	DEBUG_GL_VAR(GL_SHADING_LANGUAGE_VERSION);
 #undef DEBUG_GL_VAR
 
-	GLuint program = createProgram("shaders/vsh.glsl", "shaders/fsh.glsl");
+	GLuint VAO, buffers[2];
+	GLfloat const vertex[][2] = {
+		{+0.0, +0.7},
+		{-0.7, -0.7},
+		{+0.7, -0.7}
+	};
+	GLubyte indices[] = {
+		0, 1, 2
+	};
 	
-	LOG("program object: %d", program);
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(2, buffers);
+	
+	glBindVertexArray(VAO);
+	
+	glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof vertex, vertex, GL_STATIC_DRAW);
+	
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[1]);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof indices, indices, GL_STATIC_DRAW);
+	
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(0);
+
+	GLuint program = createProgram("shaders/vsh.glsl", "shaders/fsh.glsl");
+
+	glUseProgram(program);
+	
+	GLint angle_u = glGetUniformLocation(program, "angle");
+	float angle_v = 0;
 	
 	for (;;) {
 		SDL_Event e;
@@ -71,8 +98,17 @@ int main() {
 			if (e.type == SDL_EVENT_QUIT)
 				return 0;
 		
-		glClearColor(1, 0, 0, 0);
+		glClearColor(0, 0, 0, 0);
 		glClear(GL_COLOR_BUFFER_BIT);
+		
+		glUniform1f(angle_u, angle_v += 0.01);
+		
+		glDrawElements(
+			GL_TRIANGLES,
+			sizeof vertex / sizeof *vertex,
+			GL_UNSIGNED_BYTE,
+			NULL
+		);
 		
 		SDL_GL_SwapWindow(window);
 	}

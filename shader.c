@@ -79,14 +79,14 @@ GLuint loadShader(char const *filename, GLenum type) {
 	);
 	
 	if (log_ptr) {
-		LOG("compile log of \"%s\" %s type shader (%d bytes long):\n%s", filename,
+		LOG("compile log of \"%s\" %s shader (%d bytes long):\n%s", filename,
 			sh_type, log_len, log_ptr);
 		free(log_ptr);
 	}
 #endif // DISABLE_SHADER_DEBUG
 
 	if (!getGLObjectParam(sh, GL_COMPILE_STATUS, glGetShaderiv)) {
-		LOG("failed to compile %s type shader \"%s\"", sh_type, filename);
+		LOG_ERR("failed to compile %s shader \"%s\"", sh_type, filename);
 		glDeleteShader(sh);
 		return 0;
 	}
@@ -140,7 +140,7 @@ GLuint createProgram(char const *vsh_file, char const *fsh_file) {
 #endif
 
 	if (!getGLObjectParam(program, GL_LINK_STATUS, glGetProgramiv)) {
-		LOG("failed to link program (\"%s\", \"%s\")", vsh_file, fsh_file);
+		LOG_ERR("failed to link program (\"%s\", \"%s\")", vsh_file, fsh_file);
 		glDeleteProgram(program);
 		return 0;
 	}
