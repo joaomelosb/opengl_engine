@@ -1,18 +1,15 @@
 #version 330 core
 
 layout (location = 0) in vec4 pos;
+layout (location = 1) in vec2 tex;
 
-out vec4 f_color;
-
-uniform float angle;
+uniform struct {
+	int x, y, w, h;
+} coord = {0, 0, 100, 100};
+uniform struct {
+	int w, h;
+} screen;
 
 void main() {
-	float s = sin(angle), c = cos(angle);
-	
-	gl_Position = vec4(
-		pos.x * c - pos.y * s,
-		pos.x * s + pos.y * c,
-		pos.zw
-	);
-	f_color = gl_Position + vec4(.4);
+	gl_Position = pos;
 }
