@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 #include "common.h"
 #include "shader.h"
+#include "text_render.h"
 
 #define TEST(expr, ...) do { \
 	if (!(expr)) { \
@@ -63,9 +64,9 @@ int main() {
 	GLuint VAO, texture, buffers[2];
 	GLfloat const vertex[][2][2] = {
 		{{-1.0, +1.0}, {0, 0}},
-		{{+1.0, +1.0}, {0, 0}},
-		{{+1.0, -1.0}, {0, 0}},
-		{{-1.0, -1.0}, {0, 0}}
+		{{+1.0, +1.0}, {1, 0}},
+		{{+1.0, -1.0}, {1, 1}},
+		{{-1.0, -1.0}, {0, 1}}
 	};
 	GLubyte indices[] = {
 		0, 1, 2,
@@ -77,7 +78,12 @@ int main() {
 	glGenTextures(1, &texture);
 	
 	glBindVertexArray(VAO);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
+	
+	// texture params
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof vertex, vertex, GL_STATIC_DRAW);
@@ -110,8 +116,45 @@ int main() {
 			float x, y;
 		};
 		float raw[2];
-	} pos = {{0, 0}}, size = {{100, 50}}, speed = {{5, 0}};
-	const float GRAVITY = .1;
+	} pos = {{100, 100}}, size;
+	
+	font_t font = FONT_INIT;
+	FT_Error error;
+	
+	if ((error = font_load(&font, "Monaco.ttf"))) {
+		LOG_ERR("couldn't load font: %s", font_error_str(error));
+		return 1;
+	}
+	
+	const FT_Bitmap *bitmap = NULL;
+	
+	font_set_size(&font, 300, 300);
+	
+	if ((error = font_load_char(&font, 'A', &bitmap))) {
+		LOG("couldn't load char: %s", font_error_str(error));
+		font_close(&font);
+		return 1;
+	}
+	
+	LOG("rows=%d, width=%d, pitch=%d, pixel_mode=%s", bitmap->rows,
+		bitmap->width, bitmap->pitch, bitmap_pixel_mode_str(bitmap->pixel_mode));
+	
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	
+	glTexImage2D(
+		GL_TEXTURE_2D,
+		0,
+		GL_RED,
+		bitmap->width,
+		bitmap->rows,
+		0,
+		GL_RED,
+		GL_UNSIGNED_BYTE,
+		bitmap->buffer
+	);
+	
+	size.x = bitmap->width;
+	size.y = bitmap->rows;
 	
 	for (;;) {
 		SDL_Event e;
@@ -124,17 +167,6 @@ int main() {
 				width = e.window.data1;
 				height = e.window.data2;
 			}
-		
-		speed.y += GRAVITY;
-		
-		pos.x += speed.x;
-		pos.y += speed.y;
-		
-		if (pos.x < 0 || pos.x > width - size.x)
-			pos.x = pos.x < 0 ? 0 : width - size.x, speed.x = -speed.x;
-		
-		if (pos.y > height - size.y)
-			pos.y = height - size.y, speed.y = -10;
 		
 		glViewport(0, 0, width, height);
 		glClearColor(0, 0, 0, 0);
