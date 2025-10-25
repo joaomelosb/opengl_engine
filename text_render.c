@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "text_render.h"
 
 char const *font_error_str(FT_Error error) {
@@ -43,17 +44,43 @@ FT_Error font_load(font_t *font, char const *filename) {
 	return 0;
 }
 
-FT_Error font_set_size(font_t *font, FT_UInt width, FT_UInt height) {
-	return FT_Set_Pixel_Sizes(font->face, width, height);
-}
-
-FT_Error font_load_char(font_t const *font, FT_ULong code, const FT_Bitmap **bitmap_ptr) {
-	FT_Error error;
+FT_Error font_load_atlas(font_t const *font, font_atlas_t *atlas, FT_Int size) {
+	if (atlas->start >= atlas->end)
+		return FT_Err_Invalid_Argument;
 	
-	if ((error = FT_Load_Char(font->face, code, FT_LOAD_RENDER)))
-		return error;
+	FT_ULong count = atlas->end - atlas->start + 1;
 	
-	*bitmap_ptr = &font->face->glyph->bitmap;
+	font_char_t *array = malloc(sizeof *array * count);
+	
+	if (!array)
+		return FT_Err_Out_Of_Memory;
+	
+	FT_Set_Pixel_Sizes(font->face, size, 0);
+	
+	for (FT_ULong i = 0; i < count; i++) {
+		FT_Error error;
+		
+		if ((error = FT_Load_Char(font->face, atlas->start + i, FT_LOAD_RENDER))) {
+			free(array);
+			return error;
+		}
+		
+		font_chat_t *ch = array + i;
+		const FT_Bitmap *bitmap = &font->face->glyph->bitmap;
+		
+		ch->top = face->glyph->bitmap_top;
+		ch->left = face->glyph->bitmap_left;
+		ch->width = bitmap->width;
+		ch->height = bitmap->rows;
+		ch->advance = bitmap->advance.x;
+		
+		glGenTextures(1, &ch->texture);
+		glBindTexture(GL_TEXTURE_2D, ch->texture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, ch->width, ch->height, 0, GL_RED, GL_UNSIGNED_BYTE,
+			bitmap->buffer);
+	}
+	
+	atlas->array = array;
 	
 	return 0;
 }

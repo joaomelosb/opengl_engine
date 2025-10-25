@@ -116,45 +116,7 @@ int main() {
 			float x, y;
 		};
 		float raw[2];
-	} pos = {{100, 100}}, size;
-	
-	font_t font = FONT_INIT;
-	FT_Error error;
-	
-	if ((error = font_load(&font, "Monaco.ttf"))) {
-		LOG_ERR("couldn't load font: %s", font_error_str(error));
-		return 1;
-	}
-	
-	const FT_Bitmap *bitmap = NULL;
-	
-	font_set_size(&font, 300, 300);
-	
-	if ((error = font_load_char(&font, 'A', &bitmap))) {
-		LOG("couldn't load char: %s", font_error_str(error));
-		font_close(&font);
-		return 1;
-	}
-	
-	LOG("rows=%d, width=%d, pitch=%d, pixel_mode=%s", bitmap->rows,
-		bitmap->width, bitmap->pitch, bitmap_pixel_mode_str(bitmap->pixel_mode));
-	
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	
-	glTexImage2D(
-		GL_TEXTURE_2D,
-		0,
-		GL_RED,
-		bitmap->width,
-		bitmap->rows,
-		0,
-		GL_RED,
-		GL_UNSIGNED_BYTE,
-		bitmap->buffer
-	);
-	
-	size.x = bitmap->width;
-	size.y = bitmap->rows;
+	} pos = {{100, 100}}, size = {{100, 100}};
 	
 	for (;;) {
 		SDL_Event e;
