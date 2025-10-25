@@ -50,7 +50,7 @@ int main() {
 	TEST((err = glewInit()) == GLEW_OK, "failed to init glew: %s", glewGetErrorString(err));
 	
 	// try using adaptative vsync or normal vsync
-	if (!SDL_GL_SetSwapInterval(-1) && !SDL_GL_SetSwapInterval(1))
+	if (!SDL_GL_SetSwapInterval(1) && !SDL_GL_SetSwapInterval(-1))
 		LOG("vsync not supported");
 
 #define DEBUG_GL_VAR(value) LOG(#value ": %s", glGetString(value))
@@ -60,20 +60,24 @@ int main() {
 	DEBUG_GL_VAR(GL_SHADING_LANGUAGE_VERSION);
 #undef DEBUG_GL_VAR
 
-	GLuint VAO, buffers[2];
-	GLfloat const vertex[][2] = {
-		{+0.0, +0.7},
-		{-0.7, -0.7},
-		{+0.7, -0.7}
+	GLuint VAO, texture, buffers[2];
+	GLfloat const vertex[][2][2] = {
+		{{-1.0, +1.0}, {0, 0}},
+		{{+1.0, +1.0}, {0, 0}},
+		{{+1.0, -1.0}, {0, 0}},
+		{{-1.0, -1.0}, {0, 0}}
 	};
 	GLubyte indices[] = {
-		0, 1, 2
+		0, 1, 2,
+		0, 2, 3
 	};
 	
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(2, buffers);
+	glGenTextures(1, &texture);
 	
 	glBindVertexArray(VAO);
+	glBindTexture(GL_TEXTURE_2D, texture);
 	
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof vertex, vertex, GL_STATIC_DRAW);
@@ -81,31 +85,68 @@ int main() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[1]);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof indices, indices, GL_STATIC_DRAW);
 	
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof *vertex, NULL);
 	glEnableVertexAttribArray(0);
+	
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof *vertex, (void *)(sizeof **vertex));
+	glEnableVertexAttribArray(1);
 
 	GLuint program = createProgram("shaders/vsh.glsl", "shaders/fsh.glsl");
 
 	glUseProgram(program);
+
+#define DEF_UNIFORM(name) GLint name = glGetUniformLocation(program, #name)
+	DEF_UNIFORM(u_screen);
+	DEF_UNIFORM(u_pos);
+	DEF_UNIFORM(u_size);
+#undef DEF_UNIFORM
 	
-	GLint angle_u = glGetUniformLocation(program, "angle");
-	float angle_v = 0;
+	int width, height;
+	
+	SDL_GetWindowSize(window, &width, &height);
+	
+	union {
+		struct {
+			float x, y;
+		};
+		float raw[2];
+	} pos = {{0, 0}}, size = {{100, 50}}, speed = {{5, 0}};
+	const float GRAVITY = .1;
 	
 	for (;;) {
 		SDL_Event e;
 		
 		while (SDL_PollEvent(&e))
-			if (e.type == SDL_EVENT_QUIT)
+			switch (e.type) {
+			case SDL_EVENT_QUIT:
 				return 0;
+			case SDL_EVENT_WINDOW_RESIZED:
+				width = e.window.data1;
+				height = e.window.data2;
+			}
 		
+		speed.y += GRAVITY;
+		
+		pos.x += speed.x;
+		pos.y += speed.y;
+		
+		if (pos.x < 0 || pos.x > width - size.x)
+			pos.x = pos.x < 0 ? 0 : width - size.x, speed.x = -speed.x;
+		
+		if (pos.y > height - size.y)
+			pos.y = height - size.y, speed.y = -10;
+		
+		glViewport(0, 0, width, height);
 		glClearColor(0, 0, 0, 0);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
-		glUniform1f(angle_u, angle_v += 0.01);
+		glUniform2i(u_screen, width, height);
+		glUniform2fv(u_pos, 1, pos.raw);
+		glUniform2fv(u_size, 1, size.raw);
 		
 		glDrawElements(
 			GL_TRIANGLES,
-			sizeof vertex / sizeof *vertex,
+			sizeof indices / sizeof *indices,
 			GL_UNSIGNED_BYTE,
 			NULL
 		);
