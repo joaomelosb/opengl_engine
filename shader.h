@@ -7,6 +7,7 @@
 C_DECL_START
 
 extern GLuint loadShader(char const *, GLenum);
+
 extern GLuint createProgram(char const *, char const *);
 
 C_DECL_END

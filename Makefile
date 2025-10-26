@@ -1,4 +1,4 @@
-LIBS := -lSDL3 -lglew32 -lopengl32 -lfreetype -L.
+LIBS := -lSDL3 -lglew32 -lopengl32 -lfreetype -lz -L.
 ARGUMENTS := -Wall -Wextra -pedantic-errors
 FILES := main.c shader.c load_file.c text_render.c
 

@@ -60,63 +60,40 @@ int main() {
 	DEBUG_GL_VAR(GL_VERSION);
 	DEBUG_GL_VAR(GL_SHADING_LANGUAGE_VERSION);
 #undef DEBUG_GL_VAR
-
-	GLuint VAO, texture, buffers[2];
-	GLfloat const vertex[][2][2] = {
-		{{-1.0, +1.0}, {0, 0}},
-		{{+1.0, +1.0}, {1, 0}},
-		{{+1.0, -1.0}, {1, 1}},
-		{{-1.0, -1.0}, {0, 1}}
-	};
-	GLubyte indices[] = {
-		0, 1, 2,
-		0, 2, 3
-	};
 	
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(2, buffers);
-	glGenTextures(1, &texture);
+	font_t font;
+	FT_Error error;
 	
-	glBindVertexArray(VAO);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texture);
+	if ((error = font_load(&font, "Monaco.ttf"))) {
+		LOG("couldn't load font: %s", font_error_str(error));
+		return 1;
+	}
 	
-	// texture params
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	font_atlas_t atlas = {.start = 32, .end = 255};
 	
-	glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof vertex, vertex, GL_STATIC_DRAW);
+	if ((error = font_atlas_load(&font, &atlas, 20))) {
+		LOG("couldn't load atlas: %s", font_error_str(error));
+		font_close(&font);
+		return 1;
+	}
 	
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[1]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof indices, indices, GL_STATIC_DRAW);
+	text_ctx_t ctx = {.atlas = &atlas};
 	
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof *vertex, NULL);
-	glEnableVertexAttribArray(0);
-	
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof *vertex, (void *)(sizeof **vertex));
-	glEnableVertexAttribArray(1);
-
-	GLuint program = createProgram("shaders/vsh.glsl", "shaders/fsh.glsl");
-
-	glUseProgram(program);
-
-#define DEF_UNIFORM(name) GLint name = glGetUniformLocation(program, #name)
-	DEF_UNIFORM(u_screen);
-	DEF_UNIFORM(u_pos);
-	DEF_UNIFORM(u_size);
-#undef DEF_UNIFORM
+	if (!text_ctx_init(&ctx))
+		return 1;
 	
 	int width, height;
-	
 	SDL_GetWindowSize(window, &width, &height);
+	float color[] = {0, 1, 0};
 	
-	union {
-		struct {
-			float x, y;
-		};
-		float raw[2];
-	} pos = {{100, 100}}, size = {{100, 100}};
+	char log_strings[4][1024];
+	
+#define WRITE_VAR(value, i) sprintf(log_strings[i], #value ": %s", glGetString(value))
+	WRITE_VAR(GL_VENDOR, 0);
+	WRITE_VAR(GL_RENDERER, 1);
+	WRITE_VAR(GL_VERSION, 2);
+	WRITE_VAR(GL_SHADING_LANGUAGE_VERSION, 3);
+#undef WRITE_VAR
 	
 	for (;;) {
 		SDL_Event e;
@@ -131,19 +108,11 @@ int main() {
 			}
 		
 		glViewport(0, 0, width, height);
-		glClearColor(0, 0, 0, 0);
+		glClearColor(.05, .05, .05, 0);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
-		glUniform2i(u_screen, width, height);
-		glUniform2fv(u_pos, 1, pos.raw);
-		glUniform2fv(u_size, 1, size.raw);
-		
-		glDrawElements(
-			GL_TRIANGLES,
-			sizeof indices / sizeof *indices,
-			GL_UNSIGNED_BYTE,
-			NULL
-		);
+		for (size_t i = 0; i < sizeof log_strings / sizeof *log_strings; i++)
+			draw_text(&ctx, log_strings[i], 10, 30 * i + 30, width, height, color);
 		
 		SDL_GL_SwapWindow(window);
 	}
