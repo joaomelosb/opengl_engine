@@ -51,7 +51,7 @@ int main() {
 	TEST((err = glewInit()) == GLEW_OK, "failed to init glew: %s", glewGetErrorString(err));
 	
 	// try using adaptative vsync or normal vsync
-	if (!SDL_GL_SetSwapInterval(1) && !SDL_GL_SetSwapInterval(-1))
+	if (!SDL_GL_SetSwapInterval(-1) && !SDL_GL_SetSwapInterval(1))
 		LOG("vsync not supported");
 
 #define DEBUG_GL_VAR(value) LOG(#value ": %s", glGetString(value))
@@ -64,14 +64,15 @@ int main() {
 	font_t font;
 	FT_Error error;
 	
-	if ((error = font_load(&font, "Monaco.ttf"))) {
+	if ((error = font_load(&font, "dina.ttc"))) {
 		LOG("couldn't load font: %s", font_error_str(error));
 		return 1;
 	}
 	
 	font_atlas_t atlas = {.start = 32, .end = 255};
+	const FT_Int font_size = 25;
 	
-	if ((error = font_atlas_load(&font, &atlas, 20))) {
+	if ((error = font_atlas_load(&font, &atlas, font_size))) {
 		LOG("couldn't load atlas: %s", font_error_str(error));
 		font_close(&font);
 		return 1;
@@ -82,10 +83,6 @@ int main() {
 	if (!text_ctx_init(&ctx))
 		return 1;
 	
-	int width, height;
-	SDL_GetWindowSize(window, &width, &height);
-	float color[] = {0, 1, 0};
-	
 	char log_strings[4][1024];
 	
 #define WRITE_VAR(value, i) sprintf(log_strings[i], #value ": %s", glGetString(value))
@@ -94,6 +91,14 @@ int main() {
 	WRITE_VAR(GL_VERSION, 2);
 	WRITE_VAR(GL_SHADING_LANGUAGE_VERSION, 3);
 #undef WRITE_VAR
+
+	char log_buf[128];
+	unsigned frames = 0, frame_rate = 0;
+	Uint64 lastTime = 0, lastFrameTime = 0, current;
+	float color[] = {1, 1, 1};
+	
+	int width, height;
+	SDL_GetWindowSize(window, &width, &height);
 	
 	for (;;) {
 		SDL_Event e;
@@ -107,12 +112,36 @@ int main() {
 				height = e.window.data2;
 			}
 		
+		current = SDL_GetTicks();
+		frames++;
+		
+		if (!lastTime)
+			lastTime = current;
+		
+		if (current - lastTime >= 1000) {
+			frame_rate = frames;
+			frames = 0;
+			lastTime = current;
+		}
+		
+		if (!lastFrameTime)
+			lastFrameTime = current;
+		
+		snprintf(log_buf, sizeof log_buf, "FPS: %u, delta time: %f", frame_rate,
+			(current - lastFrameTime) / 1000.0);
+		lastFrameTime = current;
+		
 		glViewport(0, 0, width, height);
 		glClearColor(.05, .05, .05, 0);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
-		for (size_t i = 0; i < sizeof log_strings / sizeof *log_strings; i++)
-			draw_text(&ctx, log_strings[i], 10, 30 * i + 30, width, height, color);
+		size_t i = 0;
+		FT_Int offset = font_size + 10;
+		
+		for (; i < sizeof log_strings / sizeof *log_strings; i++)
+			draw_text(&ctx, log_strings[i], 10, offset * i + offset, width, height, color);
+		
+		draw_text(&ctx, log_buf, 10, offset * i + offset, width, height, color);
 		
 		SDL_GL_SwapWindow(window);
 	}
